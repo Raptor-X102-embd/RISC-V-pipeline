@@ -1,28 +1,21 @@
 `include "pipeline_if.svh"
 
 module top_module #(
+    parameter INIT_DATA_FILE = "",
     parameter INSTR_WIDTH = 32
 )(
     input logic                   clk,
-    input logic                   reset,
-
-    input  logic                  w_ena,
-    input  logic [31:0]           w_addr,
-    input  logic [INSTR_WIDTH-1:0] w_data,
-
-    input  logic                  r_ena
+    input logic                   reset
 );
     
     pipeline_if bus_if (.clk(clk), .reset(reset));
     
     register_file u_reg_file (.bus(bus_if.regfile));
 
-    fetch_top u_fetch ( 
-        .bus(bus_if.fetch),
-        .r_ena(r_ena),
-        .w_ena(w_ena),
-        .w_addr(w_addr),
-        .w_data(w_data)
+    fetch_top #(
+        .INIT_DATA_FILE("data/instr_file.mem")
+    ) u_fetch ( 
+        .bus(bus_if.fetch)
     );
     decode_top u_decode (.bus(bus_if.decode));
     execute_top u_execute (.bus(bus_if.execute));

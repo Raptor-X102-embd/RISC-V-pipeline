@@ -4,18 +4,13 @@ module tb_top;
 
     reg clk = 0;
     reg reset = 1;
-    reg w_ena = 0;
-    reg [31:0] w_addr = 0;
-    reg [31:0] w_data = 0;
-    reg r_ena = 0;
 
-    top_module #(.INSTR_WIDTH(32)) u_top (
+    top_module #(
+        .INIT_DATA_FILE("data/instr_file.mem"),
+        .INSTR_WIDTH(32)
+    ) u_top (
         .clk (clk),
-        .reset(reset),
-        .w_ena(w_ena),
-        .w_addr(w_addr),
-        .w_data(w_data),
-        .r_ena(r_ena)
+        .reset(reset)
     );
 
     always #10 clk = ~clk;
@@ -27,15 +22,12 @@ module tb_top;
         #20;
 
         $display("Loading program...");
-        w_ena = 1;
-        w_addr = 32'h00000000; w_data = 32'h00500293; #20; // addi x5, x0, 5
-        r_ena = 1;
-        w_addr = 32'h00000004; w_data = 32'h00700313; #20; // addi x6, x0, 7
-        w_addr = 32'h00000008; w_data = 32'h006283b3; #20; // add  x7, x5, x6
-        w_addr = 32'h0000000c; w_data = 32'h00702023; #20; // sw   x7, 0(x0)
-        w_addr = 32'h00000010; w_data = 32'h00002403; #20; // lw   x8, 0(x0)
-        w_addr = 32'h00000014; w_data = 32'h00000013; #20; // nop
-        w_ena = 0;
+    //  32'h00700313; #20; // addi x6, x0, 7
+    //  32'h006283b3; #20; // add  x7, x5, x6
+    //  32'h00702023; #20; // sw   x7, 0(x0)
+    //  32'h00002403; #20; // lw   x8, 0(x0)
+    //  32'h00000013; #20; // nop
+      
         $display("Program loaded.");
 
         $display("Starting pipeline...");

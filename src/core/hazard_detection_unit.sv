@@ -6,20 +6,9 @@ module hazard_detection_unit (
 
     always_comb begin
         bus.stall = 1'b0;
-
-        if (bus.valid_if_id) begin
-            if (bus.valid_ex && bus.reg_write_ex && bus.rd_ex != 5'b0 &&
-                (bus.rs1_addr == bus.rd_ex || bus.rs2_addr == bus.rd_ex)) begin
+        if (bus.valid_if_id && bus.valid_ex && bus.reg_write_ex && bus.is_load_ex && (bus.rd_ex != 5'b0)) begin
+            if (bus.rs1_addr == bus.rd_ex || bus.rs2_addr == bus.rd_ex)
                 bus.stall = 1'b1;
-            end
-            if (bus.valid_ex_mem && bus.reg_write_ex_mem && bus.rd_ex_mem != 5'b0 &&
-                (bus.rs1_addr == bus.rd_ex_mem || bus.rs2_addr == bus.rd_ex_mem)) begin
-                bus.stall = 1'b1;
-            end
-            if (bus.valid_mem_wb && bus.reg_write_mem_wb && bus.rd_mem_wb != 5'b0 &&
-                (bus.rs1_addr == bus.rd_mem_wb || bus.rs2_addr == bus.rd_mem_wb)) begin
-                bus.stall = 1'b1;
-            end
         end
     end
 

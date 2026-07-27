@@ -1,25 +1,19 @@
 `include "pipeline_if.svh"
 
 module fetch_top #(
+    parameter INIT_DATA_FILE = "",
     parameter PC_INIT_VALUE = 'h00000000
 )(
-    pipeline_if.fetch             bus,
-    input  logic                  w_ena,
-    input  logic [31:0]           w_addr,
-    input  logic [31:0]           w_data,
-
-    input  logic                  r_ena
+    pipeline_if.fetch             bus
 );
 
     logic [31:0] instr_if_id_w;
 
-    l1i_top u_l1i (
+    l1i_top #(
+        .INIT_DATA_FILE("data/instr_file.mem")
+    ) u_l1i (
         .clk(bus.clk),
         .areset(bus.reset),
-        .w_ena(w_ena),
-        .w_addr(w_addr),
-        .w_data(w_data),
-        //.r_ena(r_ena),
         .pc(bus.pc),
         .instr(instr_if_id_w)
     );
@@ -32,14 +26,10 @@ module fetch_top #(
             bus.pc <= bus.pc_target;
             bus.valid_if_id <= 1'b0;
         end else if (!bus.stall && !bus.mem_stall) begin
-            if (r_ena) begin
-                bus.pc_if_id   <= bus.pc;
-                bus.instr_if_id <= instr_if_id_w;
-                bus.valid_if_id <= 1'b1;
-                bus.pc <= bus.pc + 4;
-            end else begin
-                bus.valid_if_id <= 1'b0;
-            end
+            bus.pc_if_id   <= bus.pc;
+            bus.instr_if_id <= instr_if_id_w;
+            bus.valid_if_id <= 1'b1;
+            bus.pc <= bus.pc + 4;
         end
     end
 

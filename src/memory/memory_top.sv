@@ -44,7 +44,7 @@ module memory_top #(
         .areset(bus.reset),
         .r_ena (r_ena),
         .r_addr(bus.alu_result_ex_mem),
-        .r_data(bus.mem_read_data_mem_wb),
+        .r_data(bus.mem_read_data_mem),
         .w_ena (w_ena),
         .w_addr(bus.alu_result_ex_mem),
         .w_data(bus.rs2_data_ex_mem),
@@ -52,6 +52,16 @@ module memory_top #(
         .mem_resp_error (bus.mem_resp_error)
     );
 
+    logic  forward_mem;
+    assign forward_mem = state == WAIT          && 
+                         done_delay             &&
+                         bus.valid_ex_mem       && 
+                         bus.reg_write_ex_mem   &&
+                         bus.rd_ex_mem != 5'b0;
+
+    assign bus.rs1_forward_mem = bus.rd_ex_mem == bus.rs1_addr && forward_mem;
+    assign bus.rs2_forward_mem = bus.rd_ex_mem == bus.rs2_addr && forward_mem;
+                                 
     always_ff @(posedge bus.clk or posedge bus.reset) begin
         if (bus.reset) begin
             state <= IDLE;
@@ -66,8 +76,8 @@ module memory_top #(
             bus.valid_mem_wb <= 1'b0;
 
             if (state == IDLE) begin
-                if (bus.valid_ex_mem && !is_load_store) begin
-                    bus.valid_mem_wb     <= 1'b1;
+                if (!is_load_store) begin
+                    bus.valid_mem_wb     <= bus.valid_ex_mem;
                     bus.alu_result_mem_wb <= bus.alu_result_ex_mem;
                     bus.rd_mem_wb        <= bus.rd_ex_mem;
                     bus.is_load_mem_wb   <= 1'b0;
@@ -77,6 +87,7 @@ module memory_top #(
                 if (done_delay) begin
                     bus.valid_mem_wb     <= 1'b1;
                     bus.alu_result_mem_wb <= bus.alu_result_ex_mem;
+                    bus.mem_read_data_mem_wb <= bus.mem_read_data_mem;
                     bus.rd_mem_wb        <= bus.rd_ex_mem;
                     bus.is_load_mem_wb   <= bus.is_load_ex_mem;
                     bus.reg_write_mem_wb <= bus.reg_write_ex_mem;
