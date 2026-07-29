@@ -14,12 +14,11 @@ module tb_top;
         localparam string EXPECT_FILE = "";
     `endif
 
-    reg clk = 0;
-    reg reset = 1;
+    reg clk;
+    reg reset;
 
     top_module #(
-        .INIT_DATA_FILE(INIT_DATA_FILE),
-        .INSTR_WIDTH(32)
+        .INIT_DATA_FILE(INIT_DATA_FILE)
     ) u_top (
         .clk (clk),
         .reset(reset)
@@ -29,6 +28,7 @@ module tb_top;
 
     initial begin
         reset = 1;
+        clk = 0;
         #20;
         reset = 0;
         #20;
@@ -41,8 +41,9 @@ module tb_top;
         $display("Simulation finished, checking results...");
 
         if (EXPECT_FILE != "") begin
-            integer fd;
-            int addr, value, status;
+            integer fd, status;
+            int addr, reg_value, mem_value;
+            logic [7:0] mem_byte;
             string cmd;
             fd = $fopen(EXPECT_FILE, "r");
             if (fd == 0) begin
@@ -50,28 +51,48 @@ module tb_top;
                 $finish;
             end
             while (!$feof(fd)) begin
-                status = $fscanf(fd, "%s %d %d\n", cmd, addr, value);
-                if (status == 3) begin
+                status = $fscanf(fd, "%s ", cmd);
+                if (status == 1) begin
                     if (cmd == "reg") begin
-                        if (u_top.u_reg_file.regs[addr] !== value) begin
-                            $display("FAIL: reg[%0d] = %0d, expected %0d", addr, u_top.u_reg_file.regs[addr], value);
+                        status = $fscanf(fd, "%d %d\n", addr, reg_value);
+                        if (status != 2) begin
+                            $display("ERROR: invalid reg line in expect file");
+                            $finish;
+                        end
+                        if (u_top.u_reg_file.regs[addr] !== reg_value) begin
+                            $display("FAIL: reg[%0d] = %0d, expected %0d", addr, u_top.u_reg_file.regs[addr], reg_value);
                             $finish;
                         end else begin
-                            $display("PASS: reg[%0d] = %0d", addr, value);
+                            $display("PASS: reg[%0d] = %0d", addr, reg_value);
                         end
                     end else if (cmd == "mem") begin
-                        // Access data memory. Change 'u_mem' if your instance name differs.
-                        logic [31:0] mem_word;
-                        mem_word = u_top.u_memory.u_mem.mem[addr];
-                        if (mem_word !== value) begin
-                            $display("FAIL: mem[%0d] = 0x%0h, expected 0x%0h", addr, mem_word, value);
+                        status = $fscanf(fd, "%d %d\n", addr, mem_value);
+                        if (status != 2) begin
+                            $display("ERROR: invalid mem line in expect file");
                             $finish;
+                        end
+                        if (mem_value < 0 || mem_value > 255) begin
+                            $display("ERROR: mem value %d out of range (0-255)", mem_value);
+                            $finish;
+                        end
+                        if (addr >= 0 && addr <= 248) begin // MAX_ADDR = 248 (0xF8)
+                            mem_byte = u_top.u_memory.u_mem.mem[addr];
+                            if (mem_byte !== mem_value) begin
+                                $display("FAIL: mem[%0d] = 0x%0h, expected 0x%0h", addr, mem_byte, mem_value);
+                                $finish;
+                            end else begin
+                                $display("PASS: mem[%0d] = 0x%0h", addr, mem_value);
+                            end
                         end else begin
-                            $display("PASS: mem[%0d] = 0x%0h", addr, value);
+                            $display("ERROR: memory address %0d out of range", addr);
+                            $finish;
                         end
                     end else begin
                         $display("WARNING: unknown command '%s'", cmd);
+                        $fscanf(fd, "\n");
                     end
+                end else begin
+                    $fscanf(fd, "\n");
                 end
             end
             $fclose(fd);

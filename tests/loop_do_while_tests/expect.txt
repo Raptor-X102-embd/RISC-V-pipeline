@@ -1,0 +1,7 @@
+reg 1 0
+reg 2 55
+reg 3 55
+mem 0 55
+mem 1 0
+mem 2 0
+mem 3 0

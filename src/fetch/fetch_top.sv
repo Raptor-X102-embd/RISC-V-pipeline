@@ -8,34 +8,45 @@ module fetch_top #(
 );
 
     logic [31:0] instr_if;
-    logic [31:0] fetch_pc;
-
-    assign fetch_pc = bus.flush ? bus.pc_target : bus.pc;
 
     l1i_top #(
         .INIT_DATA_FILE(INIT_DATA_FILE)
     ) u_l1i (
         .clk(bus.clk),
         .areset(bus.reset),
-        .pc(fetch_pc),   
+        .pc(bus.pc),   
         .instr(instr_if)
     );
+
+    always_comb begin
+        bus.pc_if = bus.pc + 4;
+        if (bus.flush && bus.branch_taken) begin
+            bus.pc_if = bus.pc_target;
+        end else if (bus.pred_taken) begin
+            bus.pc_if = bus.pred_target;
+        end
+    end
 
     always_ff @(posedge bus.clk or posedge bus.reset) begin
         if (bus.reset) begin
             bus.pc           <= PC_INIT_VALUE;
             bus.valid_if_id  <= 1'b0;
+            bus.pred_taken_if_id  <= 1'b0;
+            bus.pred_target_if_id <= 32'b0;
+            //bus.pc_if_id     <= PC_INIT_VALUE;
         end else if (bus.flush) begin
-            bus.pc           <= bus.pc_target;
-            bus.pc_if_id     <= bus.pc_target;
-            bus.instr_if_id  <= instr_if;
-            bus.valid_if_id  <= 1'b1;
+            bus.pc           <= bus.pc_if;
+            bus.valid_if_id  <= 1'b0;
+            bus.pred_taken_if_id  <= 1'b0;
+            bus.pred_target_if_id <= 32'b0;
+            //bus.pc_if_id     <= bus.pc_target;
         end else if (!bus.stall && !bus.mem_stall) begin
-            // Обычная выборка
             bus.pc_if_id     <= bus.pc;
+            bus.pc           <= bus.pc_if;
             bus.instr_if_id  <= instr_if;
+            bus.pred_taken_if_id  <= bus.pred_taken;
+            bus.pred_target_if_id <= bus.pred_target;
             bus.valid_if_id  <= 1'b1;
-            bus.pc           <= bus.pc + 4;
         end
     end
 

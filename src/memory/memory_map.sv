@@ -23,7 +23,10 @@ module memory_map #(
     mem_resp_err_t mem_resp_error_reg;
 
     function automatic logic valid_addr(input logic [31:0] addr);
+        // Disabled only for MIN_ADDR == 0
+        /* verilator lint_off UNSIGNED */
         return (addr >= MIN_ADDR && addr <= MAX_ADDR);
+        /* verilator lint_off UNSIGNED */
     endfunction
 
     function automatic logic [DATA_WIDTH-1:0] pack_byte(

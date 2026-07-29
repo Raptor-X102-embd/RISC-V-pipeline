@@ -30,6 +30,11 @@ module execute_top(
 
         bus.rs1_forward_ex = bus.rd_ex == bus.rs1_addr && forward_ex;
         bus.rs2_forward_ex = bus.rd_ex == bus.rs2_addr && forward_ex; 
+
+        // branch predictor
+        bus.update_valid   = bus.valid_id_ex && 
+                             (bus.dec_id_ex.is_branch || bus.dec_id_ex.is_jump) &&
+                             !bus.stall && !bus.mem_stall;
     end
 
     always_ff @(posedge bus.clk or posedge bus.reset) begin

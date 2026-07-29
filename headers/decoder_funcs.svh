@@ -79,7 +79,6 @@ function automatic decoded_instr_t decode_fmt_i(input logic [31:0] instr);
         OPC_LOAD: begin
             dec.is_load = 1'b1;
             dec.reg_write = 1'b1;
-            dec.mem_read = 1'b1;
             dec.use_imm = 1'b1;
             dec.alu_op = ALU_ADD;
 
@@ -144,7 +143,6 @@ function automatic decoded_instr_t decode_fmt_s(input logic [31:0] instr);
     unique case (dec.opcode)
         OPC_STORE: begin
             dec.is_store = 1'b1;
-            dec.mem_write = 1'b1;
             dec.use_imm = 1'b1;
             dec.alu_op = ALU_ADD;
 

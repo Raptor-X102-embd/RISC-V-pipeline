@@ -26,7 +26,7 @@ DEFAULT_OBJ = data/instr_file.o
 
 # List of tests (explicit)
 TESTS_DIR = tests
-TESTS = branch_tests jal_tests load_store_tests   # <-- добавлен новый тест
+TESTS = branch_tests jal_tests load_store_tests loop_while_tests loop_do_while_tests
 
 # Template for each test
 define TEST_template

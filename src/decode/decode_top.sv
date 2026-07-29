@@ -37,6 +37,10 @@ module decode_top (
         if (bus.reset || bus.flush) begin
             bus.valid_id_ex <= 1'b0;
             bus.dec_id_ex <= decoded_instr_t'(0);
+            bus.pred_taken_id_ex <= 1'b0;
+            bus.pred_target_id_ex <= 32'b0;
+            // TODO: remove if everything depends on valid.
+            bus.pc_id_ex <= 32'b0;
         end else if (bus.stall) begin
             bus.valid_id_ex <= 1'b0;
         end else if (!bus.stall && !bus.mem_stall) begin
@@ -44,6 +48,8 @@ module decode_top (
                 bus.valid_id_ex <= 1'b1;
                 bus.dec_id_ex   <= dec_instr_id;
                 bus.pc_id_ex    <= bus.pc_if_id;
+                bus.pred_taken_id_ex <= bus.pred_taken_if_id;
+                bus.pred_target_id_ex <= bus.pred_target_if_id;
             end else begin
                 bus.valid_id_ex <= 1'b0;
             end

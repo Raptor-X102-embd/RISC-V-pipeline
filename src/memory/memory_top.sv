@@ -53,8 +53,8 @@ module memory_top #(
     );
 
     logic  forward_mem;
-    assign forward_mem = state == WAIT          && 
-                         done_delay             &&
+    assign forward_mem = (bus.is_load_ex_mem && state == WAIT && done_delay || 
+                         !bus.is_load_ex_mem)   &&
                          bus.valid_ex_mem       && 
                          bus.reg_write_ex_mem   &&
                          bus.rd_ex_mem != 5'b0;

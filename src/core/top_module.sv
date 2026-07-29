@@ -1,8 +1,7 @@
 `include "pipeline_if.svh"
 
 module top_module #(
-    parameter INIT_DATA_FILE = "",
-    parameter INSTR_WIDTH = 32
+    parameter INIT_DATA_FILE = ""
 )(
     input logic                   clk,
     input logic                   reset
@@ -22,5 +21,6 @@ module top_module #(
     memory_top u_memory (.bus(bus_if.memory));
     writeback_top u_writeback (.bus(bus_if.writeback));
 
+    branch_predictor_top u_bp (.bus(bus_if.branch_predictor));
     hazard_detection_unit u_hazard (.bus(bus_if.hazard_unit));
 endmodule

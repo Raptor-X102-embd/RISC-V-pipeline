@@ -72,8 +72,6 @@ package riscv_pkg;
 
         logic         reg_write;
         logic         jump_reg;
-        logic         mem_read;
-        logic         mem_write;
         logic         use_imm;
         logic         use_pc;
 

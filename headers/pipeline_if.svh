@@ -6,23 +6,39 @@
 interface pipeline_if (input logic clk, reset);
     logic flush;
     logic stall;
-    logic cancel;
+    //logic cancel;
 
     // NOTE: Naming
     // signals with suffix format *_stage1_stage2 are sequential
     // signals with suffix format *_stage1 are combinational
 
+    logic [31:0] pc;
+    logic [31:0] pc_if;
+    logic [31:0] pc_target;
+
+    //branch predictor
+    logic        pred_taken;
+    logic [31:0] pred_target;
+
     // Fetch -> Decode
     logic [31:0] instr_if_id;
-    logic [31:0] pc_if_id;
     logic        valid_if_id;
+    logic        pred_taken_if_id;
+    logic [31:0] pred_target_if_id;
+    logic [31:0] pc_if_id;
 
     // Decode -> Execute
+
+    // TODO: get rid of unuzed fields in execute 
+    /* verilator lint_off UNUSEDSIGNAL */
     decoded_instr_t dec_id_ex;
+    /* verilator lint_off UNUSEDSIGNAL */
     logic [31:0]    pc_id_ex;
     logic [31:0]    rs1_data_id_ex;
     logic [31:0]    rs2_data_id_ex;
     logic           valid_id_ex;
+    logic           pred_taken_id_ex;
+    logic [31:0]    pred_target_id_ex;
 
     // Execute -> Memory
     logic [4:0]  rd_ex_mem;
@@ -36,7 +52,9 @@ interface pipeline_if (input logic clk, reset);
     logic        valid_ex_mem;
     logic        rs1_forward_ex;
     logic        rs2_forward_ex;
-
+    logic        update_valid;
+    logic        branch_taken;
+    
     // Memory -> WriteBack
     logic [4:0]  rd_mem_wb;
     logic        reg_write_mem_wb;
@@ -52,8 +70,8 @@ interface pipeline_if (input logic clk, reset);
     logic        rs1_forward_wb;
     logic        rs2_forward_wb;
 
-    logic [31:0] pc;
-    logic [31:0] pc_target;
+    
+
 
     // Register file
     // Read (Execute)
@@ -79,8 +97,10 @@ interface pipeline_if (input logic clk, reset);
 
     modport fetch (
         input  clk, reset,
-        input  stall, mem_stall, flush, pc_target,
-        output instr_if_id, pc_if_id, valid_if_id, pc
+        input  stall, mem_stall, flush,
+               pc_target, pred_taken, pred_target, branch_taken,
+        output instr_if_id, pc, pc_if_id, pc_if, valid_if_id,
+               pred_taken_if_id, pred_target_if_id
     );
     modport decode (
         input  clk, reset,
@@ -89,9 +109,11 @@ interface pipeline_if (input logic clk, reset);
         input  rs1_forward_mem, rs2_forward_mem, 
         input  rs1_forward_wb, rs2_forward_wb, 
         input  is_load_ex_mem, alu_result_ex_mem, alu_result_ex, mem_read_data_mem,
+        input  pred_taken_if_id, pred_target_if_id,
         input  rd_data_wb,
         output dec_id_ex, pc_id_ex, valid_id_ex,
         output rs1_addr, rs2_addr, rs1_data_id_ex, rs2_data_id_ex,
+        output pred_taken_id_ex, pred_target_id_ex,
         input  rs1_data, rs2_data
     );
     modport execute (
@@ -104,7 +126,7 @@ interface pipeline_if (input logic clk, reset);
         output rd_ex_mem, reg_write_ex_mem, is_load_ex_mem, is_store_ex_mem,
                rs1_forward_ex, rs2_forward_ex, alu_result_ex_mem, alu_result_ex,
                rs2_data_ex_mem, valid_ex_mem, mem_req_type, is_load_ex,
-               flush, pc_target
+               flush, pc_target, update_valid, branch_taken
     );
     modport memory (
         input  clk, reset,
@@ -130,7 +152,7 @@ interface pipeline_if (input logic clk, reset);
     );
 
     modport memory_map (
-        input  clk, reset, cancel,
+        input  clk, reset,// cancel,
         input  valid_ex_mem, alu_result_ex_mem, rs2_data_ex_mem, mem_req_type,
         output mem_read_data_mem_wb, mem_resp_error 
     );
@@ -146,6 +168,25 @@ interface pipeline_if (input logic clk, reset);
         // Writeback
         input  rd_mem_wb, reg_write_mem_wb, valid_mem_wb,
         output stall
+    );
+
+    modport branch_predictor (
+        input    clk,
+        input    reset,
+        // Fetch
+        input    pc,
+        output   pred_taken,
+        output   pred_target,
+        output   flush,
+        // Execute
+        input    update_valid,
+        // TODO: get rid of it (is equal to valid_id_ex)
+        input    valid_id_ex,
+        input    pc_id_ex,
+        input    branch_taken,
+        input    pc_target,
+        input    pred_taken_id_ex,
+        input    pred_target_id_ex
     );
 
 endinterface
