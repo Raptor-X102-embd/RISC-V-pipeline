@@ -36,6 +36,7 @@ module decode_top (
     always_ff @(posedge bus.clk or posedge bus.reset) begin
         if (bus.reset || bus.flush) begin
             bus.valid_id_ex <= 1'b0;
+            bus.dec_id_ex <= decoded_instr_t'(0);
         end else if (bus.stall) begin
             bus.valid_id_ex <= 1'b0;
         end else if (!bus.stall && !bus.mem_stall) begin

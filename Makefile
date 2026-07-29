@@ -1,20 +1,11 @@
 # RISC-V project Makefile (Verilator + assembler)
-# Default target: build/sim (RTL simulator only)
-# To generate instruction memory: make data (or make asm)
+# Uses macros (-D) for reliable parameter override.
+# Each test gets its own VCD file.
 
 AS       = riscv64-elf-as
 LD       = riscv64-elf-ld
 OBJDUMP  = riscv64-elf-objdump
 ARCH     = rv32im
-ASM_SOURCE ?= data/instr_file.s 
-ASM_BASENAME = $(basename $(ASM_SOURCE))
-ASM_OBJECT   = $(ASM_BASENAME).o
-ASM_ELF      = $(ASM_BASENAME).elf
-ASM_MEM      = data/instr_file.mem  
-
-ASFLAGS  = -march=$(ARCH)
-LDFLAGS  = -m elf32lriscv -Ttext=0x0
-OBJDUMPFLAGS = -d
 
 VERILATOR = verilator
 COMMON_FLAGS = -Wall -Wno-fatal
@@ -25,46 +16,110 @@ INCLUDE_DIRS = -Iheaders -Isrc/core -Isrc/fetch -Isrc/decode -Isrc/execute -Isrc
 
 RTL_SOURCES = $(shell find src -name "*.sv")
 TB_TOP_SOURCE = tb/tb_top.sv
-TB_MEMORY_SOURCE = tb/tb_memory_map.sv
 SOURCES = $(RTL_SOURCES) $(TB_TOP_SOURCE)
 
-.PHONY: data asm run run_tb_memory_map lint clean clean_all
+# Default test (manual) - uses data/instr_file.s and data/instr_file.mem
+DEFAULT_ASM_SOURCE = data/instr_file.s
+DEFAULT_MEM = data/instr_file.mem
+DEFAULT_ELF = data/instr_file.elf
+DEFAULT_OBJ = data/instr_file.o
 
-# Default target: build RTL simulator only
-build/sim: $(SOURCES)
+# List of tests (explicit)
+TESTS_DIR = tests
+TESTS = branch_tests jal_tests load_store_tests   # <-- добавлен новый тест
+
+# Template for each test
+define TEST_template
+TEST_SRC_$(1) = $(TESTS_DIR)/$(1)/instr_file.s
+TEST_MEM_$(1) = $(TESTS_DIR)/$(1)/instr_file.mem
+TEST_ELF_$(1) = $(TESTS_DIR)/$(1)/instr_file.elf
+TEST_OBJ_$(1) = $(TESTS_DIR)/$(1)/instr_file.o
+TEST_EXPECT_$(1) = $(wildcard $(TESTS_DIR)/$(1)/expect.txt)
+
+data-$(1): $$(TEST_MEM_$(1))
+
+$$(TEST_MEM_$(1)): $$(TEST_SRC_$(1))
+	mkdir -p $$(dir $$@)
+	$$(AS) -march=$(ARCH) $$< -o $$(TEST_OBJ_$(1))
+	$$(LD) -m elf32lriscv -Ttext=0x0 $$(TEST_OBJ_$(1)) -o $$(TEST_ELF_$(1))
+	$$(OBJDUMP) -d $$(TEST_ELF_$(1)) | \
+		awk '/^[[:space:]]*[0-9a-f]+:/ {print $$$$2}' | \
+		grep -v '^$$$$' > $$@
+
+sim-$(1): $$(SOURCES) $$(TEST_MEM_$(1))
 	mkdir -p build
-	$(VERILATOR) --binary --top-module tb_top $(COMMON_FLAGS) $(BUILD_FLAGS) $(INCLUDE_DIRS) $^
+ifneq ($$(TEST_EXPECT_$(1)),)
+	$$(VERILATOR) --binary --top-module tb_top $$(COMMON_FLAGS) $$(BUILD_FLAGS) $$(INCLUDE_DIRS) \
+		-DINIT_DATA_FILE=\"$$(TEST_MEM_$(1))\" \
+		-DEXPECT_FILE=\"$$(TEST_EXPECT_$(1))\" \
+		-DVCD_FILE=\"sim_$(1).vcd\" \
+		$$(SOURCES)
+else
+	$$(VERILATOR) --binary --top-module tb_top $$(COMMON_FLAGS) $$(BUILD_FLAGS) $$(INCLUDE_DIRS) \
+		-DINIT_DATA_FILE=\"$$(TEST_MEM_$(1))\" \
+		-DVCD_FILE=\"sim_$(1).vcd\" \
+		$$(SOURCES)
+endif
+	mv obj_dir/Vtb_top build/sim_$(1)
+
+run-$(1): sim-$(1)
+	./build/sim_$(1)
+
+disasm-$(1): $$(TEST_ELF_$(1))
+	$$(OBJDUMP) -d $$<
+
+clean-$(1):
+	rm -f $$(TEST_OBJ_$(1)) $$(TEST_ELF_$(1)) $$(TEST_MEM_$(1))
+endef
+
+$(foreach test,$(TESTS),$(eval $(call TEST_template,$(test))))
+
+# Targets for running all tests
+.PHONY: test-all
+test-all: $(addprefix run-,$(TESTS))
+
+# Default targets (manual test with data/)
+.PHONY: all data disasm view-mem run lint clean clean_all
+
+all: build/sim
+
+build/sim: $(SOURCES) $(DEFAULT_MEM)
+	mkdir -p build
+	$(VERILATOR) --binary --top-module tb_top $(COMMON_FLAGS) $(BUILD_FLAGS) $(INCLUDE_DIRS) \
+		-DINIT_DATA_FILE=\"$(DEFAULT_MEM)\" \
+		-DVCD_FILE=\"sim.vcd\" \
+		$(SOURCES)
 	mv obj_dir/Vtb_top $@
 
-build/tb_memory_map: $(RTL_SOURCES) $(TB_MEMORY_SOURCE)
-	mkdir -p build
-	$(VERILATOR) --binary --top-module tb_memory_map $(COMMON_FLAGS) $(BUILD_FLAGS) $(INCLUDE_DIRS) $^
-	mv obj_dir/Vtb_memory_map $@
+data: $(DEFAULT_MEM)
 
-# Generate instruction memory file (separate target)
-data: $(ASM_MEM)
-asm: data
-
-$(ASM_MEM): $(ASM_SOURCE)
-	mkdir -p $(dir $@)
-	$(AS) $(ASFLAGS) $< -o $(ASM_OBJECT)
-	$(LD) $(LDFLAGS) $(ASM_OBJECT) -o $(ASM_ELF)
-	$(OBJDUMP) $(OBJDUMPFLAGS) $(ASM_ELF) | \
+$(DEFAULT_MEM): $(DEFAULT_ASM_SOURCE)
+	mkdir -p data
+	$(AS) -march=$(ARCH) $< -o $(DEFAULT_OBJ)
+	$(LD) -m elf32lriscv -Ttext=0x0 $(DEFAULT_OBJ) -o $(DEFAULT_ELF)
+	$(OBJDUMP) -d $(DEFAULT_ELF) | \
 		awk '/^[[:space:]]*[0-9a-f]+:/ {print $$2}' | \
 		grep -v '^$$' > $@
 
+disasm:
+	$(OBJDUMP) -d $(DEFAULT_ELF)
+
+view-mem: $(DEFAULT_MEM)
+	cat $<
+
 run: build/sim
 	./build/sim
-
-run_tb_memory_map: build/tb_memory_map
-	./build/tb_memory_map
 
 lint:
 	$(VERILATOR) $(LINT_FLAGS) --top-module tb_top $(COMMON_FLAGS) $(INCLUDE_DIRS) $(SOURCES)
 
 clean:
-	rm -rf build obj_dir sim.vcd
-	rm -f $(ASM_OBJECT) $(ASM_ELF)
+	rm -rf build obj_dir
+	rm -f sim.vcd sim_*.vcd
+	rm -f $(DEFAULT_OBJ) $(DEFAULT_ELF)
 
 clean_all: clean
-	rm -f $(ASM_MEM)
+	rm -f $(DEFAULT_MEM)
+	rm -f $(foreach test,$(TESTS),$(TESTS_DIR)/$(test)/instr_file.o $(TESTS_DIR)/$(test)/instr_file.elf $(TESTS_DIR)/$(test)/instr_file.mem)
+
+.PHONY: $(addprefix data-,$(TESTS)) $(addprefix sim-,$(TESTS)) $(addprefix run-,$(TESTS)) $(addprefix disasm-,$(TESTS)) $(addprefix clean-,$(TESTS))

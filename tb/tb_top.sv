@@ -2,11 +2,23 @@
 
 module tb_top;
 
+    `ifdef INIT_DATA_FILE
+        localparam string INIT_DATA_FILE = `INIT_DATA_FILE;
+    `else
+        localparam string INIT_DATA_FILE = "data/instr_file.mem";
+    `endif
+
+    `ifdef EXPECT_FILE
+        localparam string EXPECT_FILE = `EXPECT_FILE;
+    `else
+        localparam string EXPECT_FILE = "";
+    `endif
+
     reg clk = 0;
     reg reset = 1;
 
     top_module #(
-        .INIT_DATA_FILE("data/instr_file.mem"),
+        .INIT_DATA_FILE(INIT_DATA_FILE),
         .INSTR_WIDTH(32)
     ) u_top (
         .clk (clk),
@@ -20,36 +32,69 @@ module tb_top;
         #20;
         reset = 0;
         #20;
-
         $display("Loading program...");
-    //  32'h00700313; #20; // addi x6, x0, 7
-    //  32'h006283b3; #20; // add  x7, x5, x6
-    //  32'h00702023; #20; // sw   x7, 0(x0)
-    //  32'h00002403; #20; // lw   x8, 0(x0)
-    //  32'h00000013; #20; // nop
-      
         $display("Program loaded.");
-
         $display("Starting pipeline...");
 
         repeat (1000) @(posedge clk);
 
-        $display("x5 = %0d", u_top.u_reg_file.regs[5]);   // should be 5
-        $display("x6 = %0d", u_top.u_reg_file.regs[6]);   // should be 7
-        $display("x7 = %0d", u_top.u_reg_file.regs[7]);   // should be 12
-        $display("x8 = %0d", u_top.u_reg_file.regs[8]);   // should be 12
+        $display("Simulation finished, checking results...");
 
-        if (u_top.u_reg_file.regs[8] == 12)
-            $display("TEST PASSED");
-        else
-            $display("TEST FAILED: x8 = %0d, expected 12", u_top.u_reg_file.regs[8]);
+        if (EXPECT_FILE != "") begin
+            integer fd;
+            int addr, value, status;
+            string cmd;
+            fd = $fopen(EXPECT_FILE, "r");
+            if (fd == 0) begin
+                $display("ERROR: Cannot open expect file %s", EXPECT_FILE);
+                $finish;
+            end
+            while (!$feof(fd)) begin
+                status = $fscanf(fd, "%s %d %d\n", cmd, addr, value);
+                if (status == 3) begin
+                    if (cmd == "reg") begin
+                        if (u_top.u_reg_file.regs[addr] !== value) begin
+                            $display("FAIL: reg[%0d] = %0d, expected %0d", addr, u_top.u_reg_file.regs[addr], value);
+                            $finish;
+                        end else begin
+                            $display("PASS: reg[%0d] = %0d", addr, value);
+                        end
+                    end else if (cmd == "mem") begin
+                        // Access data memory. Change 'u_mem' if your instance name differs.
+                        logic [31:0] mem_word;
+                        mem_word = u_top.u_memory.u_mem.mem[addr];
+                        if (mem_word !== value) begin
+                            $display("FAIL: mem[%0d] = 0x%0h, expected 0x%0h", addr, mem_word, value);
+                            $finish;
+                        end else begin
+                            $display("PASS: mem[%0d] = 0x%0h", addr, value);
+                        end
+                    end else begin
+                        $display("WARNING: unknown command '%s'", cmd);
+                    end
+                end
+            end
+            $fclose(fd);
+            $display("ALL TESTS PASSED");
+        end else begin
+            $display("No expect file, skipping checks.");
+        end
 
-        $display("Simulation finished.");
+        $display("Final register values (non-zero):");
+        for (int i=0; i<32; i++) begin
+            if (u_top.u_reg_file.regs[i] !== 0)
+                $display("x%0d = %0d", i, u_top.u_reg_file.regs[i]);
+        end
+
         $finish;
     end
 
     initial begin
-        $dumpfile("sim.vcd");
+        `ifdef VCD_FILE
+            $dumpfile(`VCD_FILE);
+        `else
+            $dumpfile("sim.vcd");
+        `endif
         $dumpvars(0, tb_top);
         $display("VCD dumping started.");
     end
@@ -59,5 +104,4 @@ module tb_top;
         $display("Timeout! Simulation forced to stop.");
         $finish;
     end
-
 endmodule

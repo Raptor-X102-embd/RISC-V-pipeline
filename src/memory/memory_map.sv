@@ -19,14 +19,11 @@ module memory_map #(
     output mem_resp_err_t         mem_resp_error
 );
 
-    localparam START_BYTE = MIN_ADDR / DATA_WIDTH;
-    localparam END_BYTE   = MAX_ADDR / DATA_WIDTH;
-
-    logic [DATA_WIDTH-1:0] mem [END_BYTE:START_BYTE];
+    logic [DATA_WIDTH-1:0] mem [MAX_ADDR:MIN_ADDR];
     mem_resp_err_t mem_resp_error_reg;
 
     function automatic logic valid_addr(input logic [31:0] addr);
-        return (addr >= START_BYTE && addr <= END_BYTE);
+        return (addr >= MIN_ADDR && addr <= MAX_ADDR);
     endfunction
 
     function automatic logic [DATA_WIDTH-1:0] pack_byte(
@@ -54,7 +51,7 @@ module memory_map #(
 
     always_ff @(posedge clk or posedge areset) begin
         if (areset) begin
-            for (int i = START_BYTE; i <= END_BYTE; i++)
+            for (int i = MIN_ADDR; i <= MAX_ADDR; i++)
                 mem[i] <= '0;
             r_data <= '0;
             mem_resp_error_reg <= NO_ERROR;

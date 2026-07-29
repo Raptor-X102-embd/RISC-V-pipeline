@@ -13,7 +13,7 @@ module top_module #(
     register_file u_reg_file (.bus(bus_if.regfile));
 
     fetch_top #(
-        .INIT_DATA_FILE("data/instr_file.mem")
+        .INIT_DATA_FILE(INIT_DATA_FILE)
     ) u_fetch ( 
         .bus(bus_if.fetch)
     );

@@ -2,7 +2,7 @@ module l1i_top #(
     parameter INIT_DATA_FILE = "",
     parameter DATA_WIDTH = 8,
     parameter INSTR_SIZE = 4 * DATA_WIDTH,
-    parameter L1I_SIZE = 12 // in instructions
+    parameter L1I_SIZE = 50 // in instructions
 )(
     input  logic                  clk,
     input  logic                  areset,

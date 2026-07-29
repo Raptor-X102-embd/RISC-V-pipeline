@@ -1,8 +1,9 @@
 `ifndef DECODER_FUNCS_SVH
 `define DECODER_FUNCS_SVH
 
+/* verilator lint_off IMPORTSTAR */
 import riscv_pkg::*;
-
+/* verilator lint_on IMPORTSTAR */
 function automatic decoded_instr_t decode_fmt_r(input logic [31:0] instr);
     decoded_instr_t dec;
     dec = '0;
