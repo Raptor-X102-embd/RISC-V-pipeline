@@ -5,7 +5,7 @@ module memory_map #(
     parameter MAX_DATA_W = DATA_WIDTH * 4,
     parameter MAX_DATA_R = DATA_WIDTH * 4,
     parameter MIN_ADDR   = 32'h00000000,
-    parameter MAX_ADDR   = 32'h000000F8
+    parameter MAX_ADDR   = 32'h00001FFF
 )(
     input  logic                  clk,
     input  logic                  areset,

@@ -59,8 +59,8 @@ module memory_top #(
                          bus.reg_write_ex_mem   &&
                          bus.rd_ex_mem != 5'b0;
 
-    assign bus.rs1_forward_mem = bus.rd_ex_mem == bus.rs1_addr && forward_mem;
-    assign bus.rs2_forward_mem = bus.rd_ex_mem == bus.rs2_addr && forward_mem;
+    assign bus.rs1_forward_mem = bus.use_rs1_id && (bus.rd_ex_mem == bus.rs1_addr_id) && forward_mem;
+    assign bus.rs2_forward_mem = bus.use_rs2_id && (bus.rd_ex_mem == bus.rs2_addr_id) && forward_mem;
                                  
     always_ff @(posedge bus.clk or posedge bus.reset) begin
         if (bus.reset) begin
@@ -75,23 +75,19 @@ module memory_top #(
 
             bus.valid_mem_wb <= 1'b0;
 
-            if (state == IDLE) begin
-                if (!is_load_store) begin
-                    bus.valid_mem_wb     <= bus.valid_ex_mem;
-                    bus.alu_result_mem_wb <= bus.alu_result_ex_mem;
-                    bus.rd_mem_wb        <= bus.rd_ex_mem;
-                    bus.is_load_mem_wb   <= 1'b0;
-                    bus.reg_write_mem_wb <= bus.reg_write_ex_mem;
-                end
-            end else if (state == WAIT) begin
-                if (done_delay) begin
-                    bus.valid_mem_wb     <= 1'b1;
-                    bus.alu_result_mem_wb <= bus.alu_result_ex_mem;
-                    bus.mem_read_data_mem_wb <= bus.mem_read_data_mem;
-                    bus.rd_mem_wb        <= bus.rd_ex_mem;
-                    bus.is_load_mem_wb   <= bus.is_load_ex_mem;
-                    bus.reg_write_mem_wb <= bus.reg_write_ex_mem;
-                end
+            if (state == IDLE && !is_load_store) begin
+                bus.valid_mem_wb     <= bus.valid_ex_mem;
+                bus.alu_result_mem_wb <= bus.alu_result_ex_mem;
+                bus.rd_mem_wb        <= bus.rd_ex_mem;
+                bus.is_load_mem_wb   <= 1'b0;
+                bus.reg_write_mem_wb <= bus.reg_write_ex_mem;
+            end else if (state == WAIT && done_delay) begin
+                bus.valid_mem_wb     <= 1'b1;
+                bus.alu_result_mem_wb <= bus.alu_result_ex_mem;
+                bus.mem_read_data_mem_wb <= bus.mem_read_data_mem;
+                bus.rd_mem_wb        <= bus.rd_ex_mem;
+                bus.is_load_mem_wb   <= bus.is_load_ex_mem;
+                bus.reg_write_mem_wb <= bus.reg_write_ex_mem;
             end
         end
     end

@@ -9,8 +9,8 @@ module register_file #(
 
     logic [DATA_WIDTH-1:0] regs [NUM_REGS-1:0];
     
-    assign bus.rs1_data = (bus.rs1_addr == 5'd0) ? 32'd0 : regs[bus.rs1_addr];
-    assign bus.rs2_data = (bus.rs2_addr == 5'd0) ? 32'd0 : regs[bus.rs2_addr];
+    assign bus.rs1_data = (bus.rs1_addr_id == 5'd0) ? 32'd0 : regs[bus.rs1_addr_id];
+    assign bus.rs2_data = (bus.rs2_addr_id == 5'd0) ? 32'd0 : regs[bus.rs2_addr_id];
     
     always_ff @(posedge bus.clk or posedge bus.reset) begin
         if (bus.reset) begin

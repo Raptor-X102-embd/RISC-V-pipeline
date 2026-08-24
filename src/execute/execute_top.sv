@@ -24,12 +24,12 @@ module execute_top(
         bus.is_load_ex     = bus.dec_id_ex.is_load;
 
         forward_ex         = bus.valid_ex         && 
-                           bus.reg_write_ex       &&
-                           !bus.dec_id_ex.is_load && 
-                           bus.rd_ex != 5'b0;
+                             bus.reg_write_ex       &&
+                             !bus.dec_id_ex.is_load && 
+                             bus.rd_ex != 5'b0;
 
-        bus.rs1_forward_ex = bus.rd_ex == bus.rs1_addr && forward_ex;
-        bus.rs2_forward_ex = bus.rd_ex == bus.rs2_addr && forward_ex; 
+        bus.rs1_forward_ex = bus.use_rs1_id && (bus.rd_ex == bus.rs1_addr_id) && forward_ex;
+        bus.rs2_forward_ex = bus.use_rs2_id && (bus.rd_ex == bus.rs2_addr_id) && forward_ex; 
 
         // branch predictor
         bus.update_valid   = bus.valid_id_ex && 
@@ -46,7 +46,7 @@ module execute_top(
                 bus.alu_result_ex_mem <= bus.alu_result_ex;
                 bus.rd_ex_mem <= bus.dec_id_ex.rd;
                 bus.rs2_data_ex_mem <= bus.rs2_data_id_ex; // store rs2, imm(rs1)
-                bus.is_load_ex_mem <= bus.dec_id_ex.is_load;
+                bus.is_load_ex_mem <= bus.is_load_ex;
                 bus.is_store_ex_mem <= bus.dec_id_ex.is_store;
                 bus.reg_write_ex_mem <= bus.valid_id_ex && bus.dec_id_ex.reg_write;
                 bus.mem_req_type <= bus.dec_id_ex.mem_sz_type;

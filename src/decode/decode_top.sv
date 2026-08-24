@@ -8,26 +8,36 @@ module decode_top (
     assign opcode = bus.instr_if_id[6:0];
     decoded_instr_t dec_instr_id;
 
-    assign bus.rs1_addr = dec_instr_id.rs1;
-    assign bus.rs2_addr = dec_instr_id.rs2;
+    assign bus.rs1_addr_id = dec_instr_id.rs1;
+    assign bus.rs2_addr_id = dec_instr_id.rs2;
+    assign bus.use_rs1_id =  dec_instr_id.use_rs1;
+    assign bus.use_rs2_id =  dec_instr_id.use_rs2;
 
     always_comb begin
+        dec_instr_id = '0;
+        dec_instr_id.opcode = bus.instr_if_id[6:0];
+        dec_instr_id.rd     = bus.instr_if_id[11:7];
+        dec_instr_id.rs1    = bus.instr_if_id[19:15];
+        dec_instr_id.rs2    = bus.instr_if_id[24:20];
+        dec_instr_id.funct3 = bus.instr_if_id[14:12];
+        dec_instr_id.funct7 = bus.instr_if_id[31:25];
+
         unique case (opcode)
-            OPC_OP:     dec_instr_id = decode_fmt_r(bus.instr_if_id);
+            OPC_OP:     decode_fmt_r(dec_instr_id, bus.instr_if_id);
 
             OPC_OP_IMM,
             OPC_LOAD,
             OPC_JALR,
-            OPC_SYSTEM: dec_instr_id = decode_fmt_i(bus.instr_if_id);
+            OPC_SYSTEM: decode_fmt_i(dec_instr_id, bus.instr_if_id);
 
-            OPC_STORE:  dec_instr_id = decode_fmt_s(bus.instr_if_id);
+            OPC_STORE:  decode_fmt_s(dec_instr_id, bus.instr_if_id);
 
-            OPC_BRANCH: dec_instr_id = decode_fmt_b(bus.instr_if_id);
+            OPC_BRANCH: decode_fmt_b(dec_instr_id, bus.instr_if_id);
 
-            OPC_JAL:    dec_instr_id = decode_fmt_j(bus.instr_if_id);
+            OPC_JAL:    decode_fmt_j(dec_instr_id, bus.instr_if_id);
 
             OPC_LUI,
-            OPC_AUIPC:  dec_instr_id = decode_fmt_u(bus.instr_if_id);
+            OPC_AUIPC:  decode_fmt_u(dec_instr_id, bus.instr_if_id);
 
             default:    dec_instr_id.valid = 1'b0;
         endcase
@@ -58,7 +68,7 @@ module decode_top (
 
     always_ff @(posedge bus.clk or posedge bus.reset) begin
         if (!bus.stall && !bus.mem_stall && bus.valid_if_id && dec_instr_id.valid) begin
-            unique if (bus.rs1_forward_ex)
+            priority if (bus.rs1_forward_ex)
                 bus.rs1_data_id_ex <= bus.alu_result_ex;
             else if (bus.rs1_forward_mem) begin
                 if (bus.is_load_ex_mem)
@@ -70,7 +80,7 @@ module decode_top (
             else
                 bus.rs1_data_id_ex <= bus.rs1_data;
 
-            unique if (bus.rs2_forward_ex)
+            priority if (bus.rs2_forward_ex)
                 bus.rs2_data_id_ex <= bus.alu_result_ex;
             else if (bus.rs2_forward_mem) begin
                 if (bus.is_load_ex_mem)

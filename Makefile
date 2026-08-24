@@ -1,6 +1,8 @@
+#====================================================================
 # RISC-V project Makefile (Verilator + assembler)
 # Uses macros (-D) for reliable parameter override.
 # Each test gets its own VCD file.
+#====================================================================
 
 AS       = riscv64-elf-as
 LD       = riscv64-elf-ld
@@ -123,3 +125,96 @@ clean_all: clean
 	rm -f $(foreach test,$(TESTS),$(TESTS_DIR)/$(test)/instr_file.o $(TESTS_DIR)/$(test)/instr_file.elf $(TESTS_DIR)/$(test)/instr_file.mem)
 
 .PHONY: $(addprefix data-,$(TESTS)) $(addprefix sim-,$(TESTS)) $(addprefix run-,$(TESTS)) $(addprefix disasm-,$(TESTS)) $(addprefix clean-,$(TESTS))
+
+#====================================================================
+#              INTEGRATION OF OFFICIAL riscv-tests
+#====================================================================
+
+RISCV_TESTS_DIR := riscv-tests/isa/rv32ui
+RISCV_PREFIX   := riscv64-elf-
+TEST_ARCH      := rv32g
+TEST_ABI       := ilp32
+SIG_ADDR       := 0xF0
+
+# Find all .S files
+TEST_SOURCES := $(wildcard $(RISCV_TESTS_DIR)/*.S)
+TEST_NAMES   := $(basename $(notdir $(TEST_SOURCES)))
+
+#------------------------------------------------------------
+# Build ELF with custom signature address
+#------------------------------------------------------------
+$(RISCV_TESTS_DIR)/%.elf: $(RISCV_TESTS_DIR)/%.S
+	@echo "Building test: $*"
+	cd $(RISCV_TESTS_DIR) && \
+	$(RISCV_PREFIX)gcc \
+		-static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles \
+		-march=$(TEST_ARCH) -mabi=$(TEST_ABI) \
+		-I../../env/p -I../macros/scalar \
+		-T../../env/p/link.ld \
+		-Wl,--defsym=_sig_start=$(SIG_ADDR) \
+		$(notdir $<) -o $(notdir $@)
+
+#------------------------------------------------------------
+# Generate .dump (disassembly)
+#------------------------------------------------------------
+$(RISCV_TESTS_DIR)/%.dump: $(RISCV_TESTS_DIR)/%.elf
+	$(RISCV_PREFIX)objdump -d $< > $@
+
+#------------------------------------------------------------
+# Generate .mem – raw instructions (big‑endian hex words)
+#------------------------------------------------------------
+$(RISCV_TESTS_DIR)/%.mem: $(RISCV_TESTS_DIR)/%.elf
+	$(RISCV_PREFIX)objdump -d $< | \
+		awk '/^[[:space:]]*[0-9a-f]+:/ {print $$2}' | \
+		grep -v '^$$' > $@
+
+#------------------------------------------------------------
+# Generate .sig – reference signature (one value per line)
+#------------------------------------------------------------
+$(RISCV_TESTS_DIR)/%.sig: $(RISCV_TESTS_DIR)/%.dump
+	awk '/^Signature:/ {flag=1; next} flag && /^[0-9a-f]+:/ {print "0x" $$2}' $< > $@
+
+#------------------------------------------------------------
+# Prepare a test (generate all needed files)
+#------------------------------------------------------------
+prepare-%: $(RISCV_TESTS_DIR)/%.mem $(RISCV_TESTS_DIR)/%.sig
+	@echo "Prepared $*"
+
+#------------------------------------------------------------
+# Build testbench for a specific test (creates build/sim_test_$*)
+#------------------------------------------------------------
+build/sim_test_%: $(SOURCES) tb/tb_riscv_tests.sv
+	mkdir -p build
+	$(VERILATOR) --binary --top-module tb_riscv_tests $(COMMON_FLAGS) $(BUILD_FLAGS) $(INCLUDE_DIRS) \
+		-DINIT_DATA_FILE=\"$(INIT_DATA_FILE)\" \
+		-DREF_SIG_FILE=\"$(REF_SIG_FILE)\" \
+		-DVCD_FILE=\"$(VCD_FILE)\" \
+		$(SOURCES) tb/tb_riscv_tests.sv
+	mv obj_dir/Vtb_riscv_tests $@
+
+#------------------------------------------------------------
+# Run a single test
+#------------------------------------------------------------
+run-%: prepare-%
+	@echo "Running test: $*"
+	$(MAKE) build/sim_test_$* \
+		INIT_DATA_FILE=$(RISCV_TESTS_DIR)/$*.mem \
+		REF_SIG_FILE=$(RISCV_TESTS_DIR)/$*.sig \
+		VCD_FILE=sim_$*.vcd
+	./build/sim_test_$*
+
+#------------------------------------------------------------
+# Run all tests
+#------------------------------------------------------------
+.PHONY: test-riscv-all
+test-riscv-all: $(addprefix run-,$(TEST_NAMES))
+
+# Clean generated test files
+#.PHONY: clean-riscv-tests
+#clean-riscv-tests:
+#	rm -f $(RISCV_TESTS_DIR)/*.elf $(RISCV_TESTS_DIR)/*.dump $(RISCV_TESTS_DIR)/*.mem $(RISCV_TESTS_DIR)/*.sig
+
+#------------------------------------------------------------
+# Prevent automatic deletion of intermediate files
+#------------------------------------------------------------
+.PRECIOUS: $(RISCV_TESTS_DIR)/%.elf $(RISCV_TESTS_DIR)/%.dump $(RISCV_TESTS_DIR)/%.mem $(RISCV_TESTS_DIR)/%.sig

@@ -75,8 +75,8 @@ interface pipeline_if (input logic clk, reset);
 
     // Register file
     // Read (Execute)
-    logic [4:0] rs1_addr;
-    logic [4:0] rs2_addr;
+    logic [4:0] rs1_addr_id;
+    logic [4:0] rs2_addr_id;
     logic [31:0] rs1_data;
     logic [31:0] rs2_data;
 
@@ -92,6 +92,8 @@ interface pipeline_if (input logic clk, reset);
 
     // hazard detection 
     logic [4:0] rd_ex;
+    logic       use_rs1_id;
+    logic       use_rs2_id;
     logic       reg_write_ex;
     logic       valid_ex;
 
@@ -112,16 +114,17 @@ interface pipeline_if (input logic clk, reset);
         input  pred_taken_if_id, pred_target_if_id,
         input  rd_data_wb,
         output dec_id_ex, pc_id_ex, valid_id_ex,
-        output rs1_addr, rs2_addr, rs1_data_id_ex, rs2_data_id_ex,
+        output rs1_addr_id, rs2_addr_id, use_rs1_id, use_rs2_id,
+               rs1_data_id_ex, rs2_data_id_ex,
         output pred_taken_id_ex, pred_target_id_ex,
         input  rs1_data, rs2_data
     );
     modport execute (
         input  clk, reset,
         input  stall, mem_stall, dec_id_ex, pc_id_ex, rs1_data_id_ex, rs2_data_id_ex,
-               valid_id_ex, rs1_addr, rs2_addr,
+               valid_id_ex, rs1_addr_id, rs2_addr_id,
         // for hazard unit (comb logic)
-        output rd_ex, reg_write_ex, valid_ex,
+        output rd_ex, reg_write_ex, valid_ex, use_rs1_id, use_rs2_id, 
         // sequential logic for memory
         output rd_ex_mem, reg_write_ex_mem, is_load_ex_mem, is_store_ex_mem,
                rs1_forward_ex, rs2_forward_ex, alu_result_ex_mem, alu_result_ex,
@@ -132,7 +135,7 @@ interface pipeline_if (input logic clk, reset);
         input  clk, reset,
         input  stall, flush, rd_ex_mem, reg_write_ex_mem, is_load_ex_mem,
                is_store_ex_mem, alu_result_ex_mem, rs2_data_ex_mem, valid_ex_mem,
-               mem_req_type, rs1_addr, rs2_addr,
+               mem_req_type, rs1_addr_id, rs2_addr_id, use_rs1_id, use_rs2_id,
         output rd_mem_wb, reg_write_mem_wb, is_load_mem_wb,
                alu_result_mem_wb, mem_read_data_mem, mem_read_data_mem_wb, valid_mem_wb,
                mem_stall, mem_resp_error, rs1_forward_mem, rs2_forward_mem
@@ -140,14 +143,14 @@ interface pipeline_if (input logic clk, reset);
     modport writeback (
         input  rd_mem_wb, reg_write_mem_wb, is_load_mem_wb,
                alu_result_mem_wb, mem_read_data_mem_wb, valid_mem_wb,
-               rs1_addr, rs2_addr,
+               rs1_addr_id, rs2_addr_id, use_rs1_id, use_rs2_id,
         output rd_addr_wb, rd_data_wb, rd_w_ena_wb, rs1_forward_wb, rs2_forward_wb
     );
 
 
     modport regfile (
         input clk, reset,
-        input  rs1_addr, rs2_addr, rd_addr_wb, rd_data_wb, rd_w_ena_wb,
+        input  rs1_addr_id, rs2_addr_id, rd_addr_wb, rd_data_wb, rd_w_ena_wb,
         output rs1_data, rs2_data
     );
 
@@ -159,9 +162,9 @@ interface pipeline_if (input logic clk, reset);
 
     modport hazard_unit (
         // Decode
-        input  rs1_addr, rs2_addr, valid_if_id,
+        input  rs1_addr_id, rs2_addr_id, valid_if_id, use_rs1_id, use_rs2_id,
         // Execute
-        input  rd_ex, reg_write_ex, valid_ex, is_load_ex,   // <-- добавить is_load_ex
+        input  rd_ex, reg_write_ex, valid_ex, is_load_ex,
         // Memory
         input  rd_ex_mem, reg_write_ex_mem, valid_ex_mem,
         input  mem_stall,

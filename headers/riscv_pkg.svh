@@ -71,6 +71,8 @@ package riscv_pkg;
         sys_op_t      sys_op;
 
         logic         reg_write;
+        logic         use_rs1;
+        logic         use_rs2;
         logic         jump_reg;
         logic         use_imm;
         logic         use_pc;
