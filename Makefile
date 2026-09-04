@@ -14,29 +14,35 @@ COMMON_FLAGS = -Wall -Wno-fatal
 BUILD_FLAGS  = --build -j 0 --trace
 LINT_FLAGS   = --lint-only
 
-INCLUDE_DIRS = -Iheaders -Isrc/core -Isrc/fetch -Isrc/decode -Isrc/execute -Isrc/memory -Isrc/writeback
-
-RTL_SOURCES = $(shell find src -name "*.sv")
+# ---- New paths (RTL moved into rtl/) ----
+RTL = rtl
+HEADERS = $(RTL)/headers
+# Include both headers and src root (so that `#include "core/..."` resolves to rtl/src/core/...)
+INCLUDE_DIRS = -I$(HEADERS) -I$(RTL)/src
+RTL_SOURCES = $(shell find $(RTL)/src -name "*.sv")
 TB_TOP_SOURCE = tb/tb_top.sv
 SOURCES = $(RTL_SOURCES) $(TB_TOP_SOURCE)
 
-# Default test (manual) - uses data/instr_file.s and data/instr_file.mem
+# ---- Default goal (first, so `make` runs it) ----
+.DEFAULT_GOAL := all
+
+# ---- Default test (manual) - uses data/instr_file.s ----
 DEFAULT_ASM_SOURCE = data/instr_file.s
 DEFAULT_MEM = data/instr_file.mem
 DEFAULT_ELF = data/instr_file.elf
 DEFAULT_OBJ = data/instr_file.o
 
-# List of tests (explicit)
+# ---- List of explicit tests ----
 TESTS_DIR = tests
 TESTS = branch_tests jal_tests load_store_tests loop_while_tests loop_do_while_tests
 
-# Template for each test
+# ---- Template for each test ----
 define TEST_template
 TEST_SRC_$(1) = $(TESTS_DIR)/$(1)/instr_file.s
 TEST_MEM_$(1) = $(TESTS_DIR)/$(1)/instr_file.mem
 TEST_ELF_$(1) = $(TESTS_DIR)/$(1)/instr_file.elf
 TEST_OBJ_$(1) = $(TESTS_DIR)/$(1)/instr_file.o
-TEST_EXPECT_$(1) = $(wildcard $(TESTS_DIR)/$(1)/expect.txt)
+TEST_EXPECT_$(1) = $$(wildcard $(TESTS_DIR)/$(1)/expect.txt)
 
 data-$(1): $$(TEST_MEM_$(1))
 
@@ -76,14 +82,16 @@ endef
 
 $(foreach test,$(TESTS),$(eval $(call TEST_template,$(test))))
 
-# Targets for running all tests
+# ---- Targets for running all tests ----
 .PHONY: test-all
 test-all: $(addprefix run-,$(TESTS))
 
-# Default targets (manual test with data/)
-.PHONY: all data disasm view-mem run lint clean clean_all
+# ---- Default targets (manual test with data/) ----
+.PHONY: all data disasm view-mem run sim lint clean clean_all
 
 all: build/sim
+
+sim: build/sim          # alias for manual simulation
 
 build/sim: $(SOURCES) $(DEFAULT_MEM)
 	mkdir -p build
@@ -208,11 +216,6 @@ run-%: prepare-%
 #------------------------------------------------------------
 .PHONY: test-riscv-all
 test-riscv-all: $(addprefix run-,$(TEST_NAMES))
-
-# Clean generated test files
-#.PHONY: clean-riscv-tests
-#clean-riscv-tests:
-#	rm -f $(RISCV_TESTS_DIR)/*.elf $(RISCV_TESTS_DIR)/*.dump $(RISCV_TESTS_DIR)/*.mem $(RISCV_TESTS_DIR)/*.sig
 
 #------------------------------------------------------------
 # Prevent automatic deletion of intermediate files

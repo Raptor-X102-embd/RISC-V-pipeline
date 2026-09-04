@@ -3,8 +3,8 @@
 module top_module #(
     parameter INIT_DATA_FILE = ""
 )(
-    input logic                   clk,
-    input logic                   reset
+    input logic clk,
+    input logic reset
 );
     
     pipeline_if bus_if (.clk(clk), .reset(reset));
