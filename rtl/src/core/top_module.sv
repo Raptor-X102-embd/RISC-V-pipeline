@@ -4,10 +4,10 @@ module top_module #(
     parameter INIT_DATA_FILE = ""
 )(
     input logic clk,
-    input logic reset
+    input logic rst_n
 );
     
-    pipeline_if bus_if (.clk(clk), .reset(reset));
+    pipeline_if bus_if (.clk(clk), .rst_n(rst_n));
     
     register_file u_reg_file (.bus(bus_if.regfile));
 

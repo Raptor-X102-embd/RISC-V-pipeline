@@ -15,7 +15,7 @@ module fetch_top #(
         .L1I_SIZE(L1I_SIZE)
     ) u_l1i (
         .clk(bus.clk),
-        .areset(bus.reset),
+        .rst_n(bus.rst_n),
         .pc(bus.pc),   
         .instr(instr_if)
     );
@@ -29,8 +29,8 @@ module fetch_top #(
         end
     end
 
-    always_ff @(posedge bus.clk or posedge bus.reset) begin
-        if (bus.reset) begin
+    always_ff @(posedge bus.clk or negedge bus.rst_n) begin
+        if (!bus.rst_n) begin
             bus.pc           <= PC_INIT_VALUE;
             bus.valid_if_id  <= 1'b0;
             bus.pred_taken_if_id  <= 1'b0;

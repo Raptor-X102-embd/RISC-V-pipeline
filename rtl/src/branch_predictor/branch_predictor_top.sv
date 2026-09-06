@@ -60,8 +60,8 @@ module branch_predictor_top #(
         end
     end
 
-    always_ff @(posedge bus.clk or posedge bus.reset) begin
-        if (bus.reset) begin
+    always_ff @(posedge bus.clk or negedge bus.rst_n) begin
+        if (!bus.rst_n) begin
             for (int i = 0; i < BTB_SIZE; i++) begin
                 btb[i] <= btb_entry_t'(0);
                 btb[i].pht <= WT;

@@ -3,7 +3,7 @@
 
 `include "riscv_pkg.svh"
 
-interface pipeline_if (input logic clk, reset);
+interface pipeline_if (input logic clk, rst_n);
     logic flush;
     logic stall;
     //logic cancel;
@@ -98,14 +98,14 @@ interface pipeline_if (input logic clk, reset);
     logic       valid_ex;
 
     modport fetch (
-        input  clk, reset,
+        input  clk, rst_n,
         input  stall, mem_stall, flush,
                pc_target, pred_taken, pred_target, branch_taken,
         output instr_if_id, pc, pc_if_id, pc_if, valid_if_id,
                pred_taken_if_id, pred_target_if_id
     );
     modport decode (
-        input  clk, reset,
+        input  clk, rst_n,
         input  stall, mem_stall, flush, instr_if_id, pc_if_id, valid_if_id,
         input  rs1_forward_ex, rs2_forward_ex, 
         input  rs1_forward_mem, rs2_forward_mem, 
@@ -120,7 +120,7 @@ interface pipeline_if (input logic clk, reset);
         input  rs1_data, rs2_data
     );
     modport execute (
-        input  clk, reset,
+        input  clk, rst_n,
         input  stall, mem_stall, dec_id_ex, pc_id_ex, rs1_data_id_ex, rs2_data_id_ex,
                valid_id_ex, rs1_addr_id, rs2_addr_id,
         // for hazard unit (comb logic)
@@ -132,7 +132,7 @@ interface pipeline_if (input logic clk, reset);
                flush, pc_target, update_valid, branch_taken
     );
     modport memory (
-        input  clk, reset,
+        input  clk, rst_n,
         input  stall, flush, rd_ex_mem, reg_write_ex_mem, is_load_ex_mem,
                is_store_ex_mem, alu_result_ex_mem, rs2_data_ex_mem, valid_ex_mem,
                mem_req_type, rs1_addr_id, rs2_addr_id, use_rs1_id, use_rs2_id,
@@ -149,13 +149,13 @@ interface pipeline_if (input logic clk, reset);
 
 
     modport regfile (
-        input clk, reset,
+        input clk, rst_n,
         input  rs1_addr_id, rs2_addr_id, rd_addr_wb, rd_data_wb, rd_w_ena_wb,
         output rs1_data, rs2_data
     );
 
     modport memory_map (
-        input  clk, reset,// cancel,
+        input  clk, rst_n,// cancel,
         input  valid_ex_mem, alu_result_ex_mem, rs2_data_ex_mem, mem_req_type,
         output mem_read_data_mem_wb, mem_resp_error 
     );
@@ -175,7 +175,7 @@ interface pipeline_if (input logic clk, reset);
 
     modport branch_predictor (
         input    clk,
-        input    reset,
+        input    rst_n,
         // Fetch
         input    pc,
         output   pred_taken,

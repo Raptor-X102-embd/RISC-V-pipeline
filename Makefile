@@ -17,11 +17,20 @@ LINT_FLAGS   = --lint-only
 # ---- New paths (RTL moved into rtl/) ----
 RTL = rtl
 HEADERS = $(RTL)/headers
+
+# ---- AXI4 (дополнительные пути и исходники) ----
+AXI_DIR      = $(RTL)/axi4
+AXI_HEADERS  = $(AXI_DIR)/headers
+AXI_SRC      = $(AXI_DIR)/src
+AXI_SOURCES  = $(AXI_SRC)/axi4_master.sv $(AXI_SRC)/axi4_slave.sv
+
 # Include both headers and src root (so that `#include "core/..."` resolves to rtl/src/core/...)
-INCLUDE_DIRS = -I$(HEADERS) -I$(RTL)/src
+# Also add AXI headers and sources directories for `include` files
+INCLUDE_DIRS = -I$(HEADERS) -I$(RTL)/src -I$(AXI_HEADERS) -I$(AXI_SRC)
+
 RTL_SOURCES = $(shell find $(RTL)/src -name "*.sv")
 TB_TOP_SOURCE = tb/tb_top.sv
-SOURCES = $(RTL_SOURCES) $(TB_TOP_SOURCE)
+SOURCES = $(RTL_SOURCES) $(TB_TOP_SOURCE) $(AXI_SOURCES)
 
 # ---- Default goal (first, so `make` runs it) ----
 .DEFAULT_GOAL := all

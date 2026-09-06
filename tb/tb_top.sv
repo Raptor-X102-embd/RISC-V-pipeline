@@ -14,23 +14,30 @@ module tb_top;
         localparam string EXPECT_FILE = "";
     `endif
 
+    // Параметры памяти (должны совпадать с параметрами top_module)
+    localparam MEM_SIZE   = 1024;          // в байтах
+    localparam DATA_WIDTH = 32;            // ширина слова
+    localparam DATA_WIDTH_BYTES = DATA_WIDTH / 8;
+    localparam WORDS = MEM_SIZE / DATA_WIDTH_BYTES;
+    localparam MIN_ADDR = 32'h00000000;
+
     reg clk;
-    reg reset;
+    reg rst_n;
 
     top_module #(
         .INIT_DATA_FILE(INIT_DATA_FILE)
     ) u_top (
         .clk (clk),
-        .reset(reset)
+        .rst_n(rst_n)
     );
 
     always #10 clk = ~clk;
 
     initial begin
-        reset = 1;
+        rst_n = 0;
         clk = 0;
         #20;
-        reset = 0;
+        rst_n = 1;
         #20;
         $display("Loading program...");
         $display("Program loaded.");
@@ -44,6 +51,7 @@ module tb_top;
             integer fd, status;
             int addr, reg_value, mem_value;
             logic [7:0] mem_byte;
+            logic [DATA_WIDTH-1:0] mem_word;
             string cmd;
             fd = $fopen(EXPECT_FILE, "r");
             if (fd == 0) begin
@@ -75,16 +83,31 @@ module tb_top;
                             $display("ERROR: mem value %d out of range (0-255)", mem_value);
                             $finish;
                         end
-                        if (addr >= 0 && addr <= 248) begin // MAX_ADDR = 248 (0xF8)
-                            mem_byte = u_top.u_memory.u_mem.mem[addr];
-                            if (mem_byte !== mem_value) begin
-                                $display("FAIL: mem[%0d] = 0x%0h, expected 0x%0h", addr, mem_byte, mem_value);
-                                $finish;
+                        // Проверка адреса в пределах памяти
+                        if (addr >= MIN_ADDR && addr < MIN_ADDR + MEM_SIZE) begin
+                            // Чтение слова из AXI-слейва
+                            // Путь: top_module.u_memory.u_mem.u_slave.mem
+                            // Массив индексируется от MIN_ADDR до MIN_ADDR+WORDS-1
+                            // Байтовый адрес преобразуем в индекс слова и смещение
+                            automatic logic [31:0] word_addr = addr >> $clog2(DATA_WIDTH_BYTES);
+                            automatic logic [31:0] byte_offset = addr & (DATA_WIDTH_BYTES-1);
+                            // Проверка, что индекс в пределах массива
+                            if (word_addr >= MIN_ADDR && word_addr < MIN_ADDR + WORDS) begin
+                                mem_word = u_top.u_memory.u_mem.u_slave.mem[word_addr];
+                                mem_byte = mem_word[byte_offset*8 +: 8];
+                                if (mem_byte !== mem_value) begin
+                                    $display("FAIL: mem[%0d] = 0x%0h, expected 0x%0h", addr, mem_byte, mem_value);
+                                    $display("word_addr: %0d, byte_offset = %0d", word_addr, byte_offset);
+                                    $finish;
+                                end else begin
+                                    $display("PASS: mem[%0d] = 0x%0h", addr, mem_value);
+                                end
                             end else begin
-                                $display("PASS: mem[%0d] = 0x%0h", addr, mem_value);
+                                $display("ERROR: word address %0d out of range", word_addr);
+                                $finish;
                             end
                         end else begin
-                            $display("ERROR: memory address %0d out of range", addr);
+                            $display("ERROR: memory address %0d out of range [0..%0d]", addr, MIN_ADDR+MEM_SIZE-1);
                             $finish;
                         end
                     end else begin

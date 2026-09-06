@@ -43,8 +43,8 @@ module decode_top (
         endcase
     end
 
-    always_ff @(posedge bus.clk or posedge bus.reset) begin
-        if (bus.reset || bus.flush) begin
+    always_ff @(posedge bus.clk or negedge bus.rst_n) begin
+        if (!bus.rst_n || bus.flush) begin
             bus.valid_id_ex <= 1'b0;
             bus.dec_id_ex <= decoded_instr_t'(0);
             bus.pred_taken_id_ex <= 1'b0;
@@ -66,7 +66,7 @@ module decode_top (
         end
     end
 
-    always_ff @(posedge bus.clk or posedge bus.reset) begin
+    always_ff @(posedge bus.clk or negedge bus.rst_n) begin
         if (!bus.stall && !bus.mem_stall && bus.valid_if_id && dec_instr_id.valid) begin
             priority if (bus.rs1_forward_ex)
                 bus.rs1_data_id_ex <= bus.alu_result_ex;

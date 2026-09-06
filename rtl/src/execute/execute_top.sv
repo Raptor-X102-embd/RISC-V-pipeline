@@ -37,8 +37,8 @@ module execute_top(
                              !bus.stall && !bus.mem_stall;
     end
 
-    always_ff @(posedge bus.clk or posedge bus.reset) begin
-        if (bus.reset) begin
+    always_ff @(posedge bus.clk or negedge bus.rst_n) begin
+        if (!bus.rst_n) begin
             bus.valid_ex_mem <= 1'b0;
         end else begin
             if (!bus.mem_stall) begin
